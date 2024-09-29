@@ -73,12 +73,13 @@ export default function Home() {
           />
 
           <div className="flex space-x-4">
-            <GradientButton onClick={() => console.log("Learn More clicked")}>
+            <GradientButton onClick={() => window.location.href = "/Initial_quiz"}>
               Find where to start
             </GradientButton>
-            <GradientButton onClick={() => console.log("Contact Us clicked")}>
+            <GradientButton onClick={() => window.location.href = "/quiz2"}>
               Find what is next
             </GradientButton>
+
           </div>
         </div>
       </section>
