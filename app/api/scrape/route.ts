@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 
-interface JobName {
+interface JobDetails {
   letter: string;
+  link: string;
   name: string;
+  content: string;
 }
 
 export async function GET() {
@@ -12,39 +14,43 @@ export async function GET() {
     const page = await browser.newPage();
     await page.goto('https://www.4cornerresources.com/job-descriptions/', { waitUntil: 'networkidle0' });
 
-    const jobNames: JobName[] = [];
+    const jobLinks = await page.evaluate(() => {
+      const links = document.querySelectorAll('.items-inner .letter-section ul.az-columns li a');
+      return Array.from(links).map(a => ({
+        letter: a.textContent?.trim().charAt(0).toUpperCase() || '',
+        link: a.getAttribute('href') || '',
+        name: a.textContent?.trim() || ''
+      }));
+    });
 
-    for (let charCode = 65; charCode <= 90; charCode++) {
-      const letter = String.fromCharCode(charCode);
-      const sectionId = `a-z-listing-letter-${letter}-1`;
+    // Filter job links to start from 'G'
+    const filteredJobLinks = jobLinks.filter(job => job.letter >= 'G');
 
-      const letterJobs = await page.evaluate((id, letter) => {
-        const section = document.getElementById(id);
-        if (!section) return [];
+    console.log(`Found ${filteredJobLinks.length} job links from G to Z`);
 
-        const ul = section.querySelector('ul.az-columns.max-1-columns, ul.az-columns.max-2-columns, ul.az-columns.max-3-columns, ul.az-columns.max-4-columns, ul.az-columns.max-5-columns, ul.az-columns.max-6-columns');
-        if (!ul) return [];
+    const jobDetails: JobDetails[] = [];
 
-        const links = ul.querySelectorAll('li a');
-        return Array.from(links).map(a => ({
-          letter: letter,
-          name: a.textContent?.trim() || ''
-        }));
-      }, sectionId, letter);
-
-      jobNames.push(...letterJobs);
+    for (const item of filteredJobLinks) {
+      if (item.link) {
+        await page.goto(item.link, { waitUntil: 'networkidle0' });
+        const content = await page.evaluate(() => document.body.innerText);
+        jobDetails.push({
+          letter: item.letter,
+          link: item.link,
+          name: item.name,
+          content: content
+        });
+        console.log(`Scraped content for ${item.name} (${item.link})`);
+      }
     }
 
     await browser.close();
 
-    console.log(`Total job names scraped: ${jobNames.length}`);
-    jobNames.forEach(job => {
-      console.log(`${job.letter}: ${job.name}`);
-    });
+    console.log(`Total job descriptions scraped: ${jobDetails.length}`);
 
     return NextResponse.json({
-      message: `Scraped ${jobNames.length} job names.`,
-      jobNames: jobNames
+      message: `Scraped ${jobDetails.length} job descriptions from G to Z.`,
+      jobDetails: jobDetails.map(({ letter, link, name }) => ({ letter, link, name }))
     });
 
   } catch (error) {
