@@ -16,6 +16,10 @@ const DynamicQuiz: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [careerPath, setCareerPath] = useState<string>('');
+  const [careerReadinessScore, setCareerReadinessScore] = useState<number | null>(null);
+  const [scoreExplanation, setScoreExplanation] = useState<string | null>(null);
+  const [isQuizComplete, setIsQuizComplete] = useState<boolean>(false);
+  const [questionQueue, setQuestionQueue] = useState<string[]>([]);
 
   const handleNextQuestion = async (): Promise<void> => {
     if (answer.trim() === '') return;
@@ -27,30 +31,58 @@ const DynamicQuiz: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/quiz2generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          history: newHistory,
-          careerPath: careerPath || answer // Use the first answer as the career path if not set
-        }),
-      });
+      if (!careerPath) {
+        setCareerPath(answer);
+        const response = await fetch('/api/quiz2generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            history: newHistory,
+            careerPath: answer,
+            calculateScore: false
+          }),
+        });
 
-      const data = await response.json();
-      if (response.ok) {
-        if (!careerPath) {
-          setCareerPath(answer);
+        const data = await response.json();
+        if (response.ok) {
+          setQuestionQueue(data.questions);
+          setCurrentQuestion(data.questions[0]);
+        } else {
+          throw new Error(data.error || 'Failed to generate questions');
         }
-        setCurrentQuestion(data.message);
       } else {
-        throw new Error(data.error || 'Failed to generate a new question');
+        if (questionQueue.length > 1) {
+          setCurrentQuestion(questionQueue[1]);
+          setQuestionQueue(questionQueue.slice(1));
+        } else {
+          // Quiz is complete, calculate score
+          const scoreResponse = await fetch('/api/quiz2generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              history: newHistory,
+              careerPath: careerPath,
+              calculateScore: true
+            }),
+          });
+
+          const scoreData = await scoreResponse.json();
+          if (scoreResponse.ok) {
+            setCareerReadinessScore(scoreData.score);
+            setScoreExplanation(scoreData.explanation);
+            setIsQuizComplete(true);
+          } else {
+            throw new Error(scoreData.error || 'Failed to calculate score');
+          }
+        }
       }
     } catch (error) {
-      console.error('Error getting next question:', error);
+      console.error('Error:', error);
       setError(error instanceof Error ? error.message : String(error));
-      setCurrentQuestion("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -72,13 +104,20 @@ const DynamicQuiz: React.FC = () => {
           placeholder="Your answer"
           value={answer}
           onChange={handleAnswerChange}
-          disabled={isLoading}
+          disabled={isLoading || isQuizComplete}
         />
         {error && <p className="text-red-500 mt-2">{error}</p>}
+        {isQuizComplete && (
+          <div className="mt-4">
+            <p>Quiz Complete!</p>
+            <p>Your Career Readiness Score: {careerReadinessScore}%</p>
+            <p className="mt-2">{scoreExplanation}</p>
+          </div>
+        )}
       </CardContent>
       <CardFooter>
-        <Button onClick={handleNextQuestion} disabled={isLoading}>
-          {isLoading ? "Loading..." : "Next Question"}
+        <Button onClick={handleNextQuestion} disabled={isLoading || isQuizComplete}>
+          {isLoading ? "Loading..." : isQuizComplete ? "Quiz Complete" : "Next Question"}
         </Button>
       </CardFooter>
     </Card>
@@ -86,3 +125,5 @@ const DynamicQuiz: React.FC = () => {
 };
 
 export default DynamicQuiz;
+
+
