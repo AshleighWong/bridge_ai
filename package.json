@@ -24,6 +24,7 @@
     "lucide-react": "^0.446.0",
     "next": "14.2.13",
     "puppeteer": "^23.4.1",
+    "radix-ui": "^1.0.1",
     "react": "^18",
     "react-dom": "^18",
     "react-element-to-jsx-string": "^15.0.0",
