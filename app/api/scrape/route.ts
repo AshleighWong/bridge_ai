@@ -1,4 +1,3 @@
-// app/api/scrape/route.ts
 import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 
@@ -18,23 +17,27 @@ export async function GET() {
     for (let charCode = 65; charCode <= 90; charCode++) {
       const letter = String.fromCharCode(charCode);
       const sectionId = `a-z-listing-letter-${letter}-1`;
+
       const letterJobs = await page.evaluate((id, letter) => {
         const section = document.getElementById(id);
         if (!section) return [];
-        const links = section.querySelectorAll('ul.az-columns li a');
+
+        const ul = section.querySelector('ul.az-columns.max-1-columns, ul.az-columns.max-2-columns, ul.az-columns.max-3-columns, ul.az-columns.max-4-columns, ul.az-columns.max-5-columns, ul.az-columns.max-6-columns');
+        if (!ul) return [];
+
+        const links = ul.querySelectorAll('li a');
         return Array.from(links).map(a => ({
           letter: letter,
           name: a.textContent?.trim() || ''
         }));
       }, sectionId, letter);
+
       jobNames.push(...letterJobs);
     }
 
     await browser.close();
 
     console.log(`Total job names scraped: ${jobNames.length}`);
-
-    // Log each job name in the server console
     jobNames.forEach(job => {
       console.log(`${job.letter}: ${job.name}`);
     });
@@ -43,6 +46,7 @@ export async function GET() {
       message: `Scraped ${jobNames.length} job names.`,
       jobNames: jobNames
     });
+
   } catch (error) {
     console.error('Scraping error:', error);
     return NextResponse.json({ error: 'An error occurred while scraping' }, { status: 500 });

@@ -11,7 +11,7 @@ export default function JobScraperTrigger() {
     setResult('');
     setError('');
     try {
-      const response = await fetch('/api/scrape');  // Updated API route
+      const response = await fetch('/api/scrape');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
