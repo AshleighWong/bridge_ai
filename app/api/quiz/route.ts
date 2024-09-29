@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 
 interface QuizItem {
@@ -10,7 +10,7 @@ const groq = new Groq({
   apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const { history }: { history: QuizItem[] } = await request.json();
 
   const prompt = `Given the following quiz history:
